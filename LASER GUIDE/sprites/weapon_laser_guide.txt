@@ -1,0 +1,5 @@
+3
+weapon			640 640_hud_laser_guide	0	0	170	45
+weapon_s		640 640_hud_laser_guide	0	0	170	45
+
+
