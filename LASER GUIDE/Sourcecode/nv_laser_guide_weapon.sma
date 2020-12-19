@@ -124,7 +124,7 @@ public plugin_init()
 	
 	// Ham
 	RegisterHam(Ham_Item_AddToPlayer, weapon_laser_guide, "fw_Item_AddToPlayer_Post", 1);
-	
+	RegisterHam(Ham_Weapon_PrimaryAttack,weapon_laser_guide,"fw_Primary_Attack");
 	register_think(Ground_Sprite_ClassName,"think_sprite");
 	
 	register_clcmd("weapon_laser_guide","weapon_hook");
@@ -299,34 +299,54 @@ public fw_CmdStart(id, uc_handle, seed)
 	
 	if(!is_user_alive(id)) return FMRES_IGNORED;
 	
-	if(get_user_weapon(id) != CSW_LASER || !Get_BitVar(g_has_laser,id)) return FMRES_IGNORED;
-	
-	Set_Clip(id,0);
-	cs_set_user_bpammo(id,CSW_LASER,0);
-	
-	static PressButton; PressButton = get_uc(uc_handle, UC_Buttons);
-	static OldButton; OldButton = pev(id, pev_oldbuttons);
-	if(!(OldButton & IN_ATTACK) && PressButton & IN_ATTACK)
+	if(cs_get_user_weapon(id) == CSW_LASER && Get_BitVar(g_has_laser,id))
 	{
-		if(Get_BitVar(g_has_used,id))
+		if(g_Used[id] != 0)
 		{
-			UnSet_BitVar(g_has_used,id);
-			Send_BarTime(id,2.0);
+			Set_Clip(id,0);
+			cs_set_user_bpammo(id,CSW_LASER,0);
+	
+			static PressButton; PressButton = get_uc(uc_handle, UC_Buttons);
+			static OldButton; OldButton = pev(id, pev_oldbuttons);
+			if(!(OldButton & IN_ATTACK) && PressButton & IN_ATTACK)
+			{
+				if(Get_BitVar(g_has_used,id))
+				{
+					UnSet_BitVar(g_has_used,id);
+					Send_BarTime(id,2.0);
 			
-			set_task(2.0,"Call_Attack",id);
-			set_task(get_pcvar_float(g_iCvars[1]),"CanShoot",id);
-			set_weapon_anim(id,1);
+					set_task(2.0,"Call_Attack",id);
+					set_task(get_pcvar_float(g_iCvars[1]),"CanShoot",id);
+					set_weapon_anim(id,1);
 			
-			emit_sound(id, CHAN_WEAPON, szSounds[4], 1.0, ATTN_NORM, 0, PITCH_NORM);
-		}
-		else
-		{
-			client_print(id,print_center,"Reloading....");
-			emit_sound(id, CHAN_WEAPON, szSounds[2], 1.0, ATTN_NORM, 0, PITCH_NORM);
-		}
+					emit_sound(id, CHAN_WEAPON, szSounds[4], 1.0, ATTN_NORM, 0, PITCH_NORM);
+				}
+				else
+				{
+					client_print(id,print_center,"Reloading....");
+					emit_sound(id, CHAN_WEAPON, szSounds[2], 1.0, ATTN_NORM, 0, PITCH_NORM);
+				}
 		
+			}
+		}
 	}
+	else
+		ammo_hud(id,0);
 	return FMRES_IGNORED;
+}
+
+public fw_Primary_Attack(ent)
+{
+	if(pev_valid(ent))
+	{
+		new id = pev(ent,pev_owner);
+		
+		if(Get_BitVar(g_has_laser,id))
+		{
+			return HAM_SUPERCEDE;
+		}
+	}	
+	return HAM_IGNORED;	
 }
 
 public CanShoot(id)
@@ -360,6 +380,7 @@ public fw_SetModel(entity, model[])
 		{
 			set_pev(weapon, pev_impulse, WEAPON_SECRETCODE);
 			engfunc(EngFunc_SetModel, entity, W_MODEL);
+			set_pev(weapon,pev_iuser1,g_Used[id]);
 			Remove_Laser(id);
 			ammo_hud(id,0);
 			return FMRES_SUPERCEDE;
@@ -380,9 +401,8 @@ public fw_Item_AddToPlayer_Post(Ent, id)
 		Set_BitVar(g_has_used,id);
 		
 		ammo_hud(id,0);
-		g_Used[id] = get_pcvar_num(g_iCvars[2]);
+		g_Used[id] = pev(Ent,pev_iuser1);
 		ammo_hud(id,1);
-		
 		set_pev(Ent, pev_impulse, 0);
 		Set_Clip(id,0); // :-D
 		cs_set_user_bpammo(id,CSW_LASER,0);
@@ -469,6 +489,7 @@ public Call_Attack(id)
 		else
 		{
 			Create_Beam(id,255,0,0);
+			Set_BitVar(g_has_used,id);
 			emit_sound(id, CHAN_WEAPON, szSounds[2], 1.0, ATTN_NORM, 0, PITCH_NORM);
 		}
 		
